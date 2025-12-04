@@ -1,1 +1,768 @@
+Personaje.h
 
+#pragma once
+
+namespace Trabajofinal {
+
+    using namespace System;
+    using namespace System::Drawing;
+
+    public ref class Personaje abstract
+    {
+    protected:
+        String^ nombre;
+        Point posicion;
+        int vida;
+        int vidaMaxima;
+        Color color;
+        
+    public:
+        Personaje(String^ nombre, Point posicionInicial, Color colorPersonaje)
+        {
+            this->nombre = nombre;
+            this->posicion = posicionInicial;
+            this->vida = 100;
+            this->vidaMaxima = 100;
+            this->color = colorPersonaje;
+        }
+        
+        property String^ Nombre {
+            String^ get() { return nombre; }
+        }
+        
+        property Point Posicion {
+            Point get() { return posicion; }
+            void set(Point value) { posicion = value; }
+        }
+        
+        property int Vida {
+            int get() { return vida; }
+            void set(int value) { 
+                vida = value; 
+                if (vida > vidaMaxima) vida = vidaMaxima;
+                if (vida < 0) vida = 0;
+            }
+        }
+        
+        property Color ColorPersonaje {
+            Color get() { return color; }
+            void set(Color value) { color = value; }
+        }
+        
+        virtual void Dibujar(Graphics^ g) abstract;
+        virtual void Actualizar() abstract;
+        
+        void Mover(int dx, int dy)
+        {
+            posicion.X += dx;
+            posicion.Y += dy;
+        }
+        
+        bool EstaVivo()
+        {
+            return vida > 0;
+        }
+        
+        bool ColisionaCon(Personaje^ otro)
+        {
+            int dx = posicion.X - otro->Posicion.X;
+            int dy = posicion.Y - otro->Posicion.Y;
+            int distancia = (int)Math::Sqrt(dx * dx + dy * dy);
+            return distancia < 40;
+        }
+    };
+}
+
+
+
+
+
+
+
+
+
+Protagonista.h
+
+#pragma once
+
+#include "Personaje.h"
+
+namespace Trabajofinal {
+    
+    public ref class Protagonista : public Personaje
+    {
+    private:
+        int experiencia;
+        array<int>^ decisiones; // Usando array administrado
+        array<String^>^ reflexiones;
+        int puntos;
+        
+    public:
+        Protagonista(Point posicionInicial)
+            : Personaje("Protagonista", posicionInicial, Color::Cyan)
+        {
+            experiencia = 0;
+            puntos = 0;
+            decisiones = gcnew array<int>(3);
+            reflexiones = gcnew array<String^>(10);
+        }
+        
+        virtual void Dibujar(Graphics^ g) override
+        {
+            SolidBrush^ brushCuerpo = gcnew SolidBrush(color);
+            g->FillEllipse(brushCuerpo, posicion.X - 20, posicion.Y - 20, 40, 40);
+            
+            SolidBrush^ brushOjos = gcnew SolidBrush(Color::White);
+            g->FillEllipse(brushOjos, posicion.X - 8, posicion.Y - 5, 8, 8);
+            g->FillEllipse(brushOjos, posicion.X + 2, posicion.Y - 5, 8, 8);
+            
+            Pen^ penBoca = gcnew Pen(Color::Black, 2);
+            g->DrawArc(penBoca, posicion.X - 10, posicion.Y, 20, 10, 0, 180);
+            
+            delete brushCuerpo;
+            delete brushOjos;
+            delete penBoca;
+        }
+        
+        virtual void Actualizar() override
+        {
+            // Lógica de actualización aquí
+        }
+        
+        void TomarDecision(int mundo, int decision)
+        {
+            if (mundo >= 0 && mundo < decisiones->Length)
+            {
+                decisiones[mundo] = decision;
+                
+                if (decision == 1)
+                    AgregarReflexion("Elegi el camino de la eficiencia");
+                else if (decision == 2)
+                    AgregarReflexion("Elegi el camino de la creatividad");
+                else if (decision == 3)
+                    AgregarReflexion("Elegi el camino del equilibrio");
+            }
+        }
+        
+        void AgregarReflexion(String^ reflexion)
+        {
+            for (int i = 0; i < reflexiones->Length; i++)
+            {
+                if (reflexiones[i] == nullptr)
+                {
+                    reflexiones[i] = reflexion;
+                    break;
+                }
+            }
+        }
+        
+        String^ ObtenerReflexionFinal()
+        {
+            int eficiencia = 0, creatividad = 0, equilibrio = 0;
+            
+            for (int i = 0; i < decisiones->Length; i++)
+            {
+                if (decisiones[i] == 1) eficiencia++;
+                else if (decisiones[i] == 2) creatividad++;
+                else if (decisiones[i] == 3) equilibrio++;
+            }
+            
+            String^ reflexion = "Mi viaje me enseno que: ";
+            
+            if (eficiencia > creatividad && eficiencia > equilibrio)
+                reflexion += "la eficiencia es necesaria pero no a costa de la humanidad.";
+            else if (creatividad > eficiencia && creatividad > equilibrio)
+                reflexion += "la creatividad humana es invaluable pero necesita estructura.";
+            else
+                reflexion += "el equilibrio entre IA y humanidad es el camino al futuro.";
+            
+            return reflexion;
+        }
+        
+        property int Experiencia {
+            int get() { return experiencia; }
+            void set(int value) { experiencia = value; }
+        }
+        
+        property int Puntos {
+            int get() { return puntos; }
+            void set(int value) { puntos = value; }
+        }
+        
+        void SumarPuntos(int cantidad)
+        {
+            puntos += cantidad;
+            experiencia += cantidad / 2;
+        }
+    };
+}
+
+Enemigo.h
+#pragma once
+
+#include "Personaje.h"
+
+namespace Trabajofinal {
+    
+    public enum class TipoEnemigo
+    {
+        IA,
+        Humano,
+        Mixto
+    };
+    
+    public ref class Enemigo : public Personaje
+    {
+    private:
+        TipoEnemigo tipo;
+        int danio;
+        bool enConflicto;
+        String^ dialogoConflicto;
+        String^ dialogoCooperacion;
+        
+    public:
+        Enemigo(String^ nombre, Point posicion, TipoEnemigo tipoEnemigo, Color color)
+            : Personaje(nombre, posicion, color)
+        {
+            tipo = tipoEnemigo;
+            enConflicto = false;
+            
+            if (tipo == TipoEnemigo::IA)
+            {
+                danio = 15;
+                dialogoConflicto = "Analisis: amenaza detectada. Neutralizar.";
+                dialogoCooperacion = "Cooperacion no esta en mi programacion.";
+            }
+            else if (tipo == TipoEnemigo::Humano)
+            {
+                danio = 10;
+                dialogoConflicto = "¡No te acerques! Desconfio de ti.";
+                dialogoCooperacion = "Tal vez podamos ayudarnos...";
+            }
+            else // Mixto
+            {
+                danio = 12;
+                dialogoConflicto = "Mi programacion y mi conciencia estan en conflicto.";
+                dialogoCooperacion = "Busquemos una solucion juntos.";
+            }
+        }
+        
+        virtual void Dibujar(Graphics^ g) override
+        {
+            SolidBrush^ brushCuerpo = gcnew SolidBrush(color);
+            
+            if (tipo == TipoEnemigo::IA)
+            {
+                // Cuadrado para IA
+                g->FillRectangle(brushCuerpo, posicion.X - 15, posicion.Y - 15, 30, 30);
+            }
+            else if (tipo == TipoEnemigo::Humano)
+            {
+                // Forma irregular para humano
+                array<Point>^ formaHumana = gcnew array<Point>(5);
+                formaHumana[0] = Point(posicion.X, posicion.Y - 15);
+                formaHumana[1] = Point(posicion.X + 15, posicion.Y - 5);
+                formaHumana[2] = Point(posicion.X + 10, posicion.Y + 15);
+                formaHumana[3] = Point(posicion.X - 10, posicion.Y + 15);
+                formaHumana[4] = Point(posicion.X - 15, posicion.Y - 5);
+                g->FillPolygon(brushCuerpo, formaHumana);
+            }
+            else // Mixto
+            {
+                // Circulo con detalles
+                g->FillEllipse(brushCuerpo, posicion.X - 15, posicion.Y - 15, 30, 30);
+                
+                SolidBrush^ brushDetalle = gcnew SolidBrush(Color::White);
+                g->FillRectangle(brushDetalle, posicion.X - 8, posicion.Y - 8, 5, 5);
+                g->FillRectangle(brushDetalle, posicion.X + 3, posicion.Y - 8, 5, 5);
+                g->FillRectangle(brushDetalle, posicion.X - 2, posicion.Y + 3, 5, 5);
+                delete brushDetalle;
+            }
+            
+            delete brushCuerpo;
+        }
+        
+        virtual void Actualizar() override
+        {
+            // Movimiento simple
+            if (tipo == TipoEnemigo::IA)
+            {
+                // IA se mueve en linea recta
+                posicion.X += 2;
+                if (posicion.X > 950) posicion.X = 0;
+            }
+            else if (tipo == TipoEnemigo::Humano)
+            {
+                // Humano se mueve aleatoriamente
+                Random^ rand = gcnew Random();
+                posicion.X += rand->Next(-3, 4);
+                posicion.Y += rand->Next(-3, 4);
+                delete rand;
+            }
+            else // Mixto
+            {
+                // Mixto alterna entre ambos
+                static bool modoIA = true;
+                static int contador = 0;
+                
+                if (modoIA)
+                {
+                    posicion.X += 2;
+                }
+                else
+                {
+                    Random^ rand = gcnew Random();
+                    posicion.X += rand->Next(-2, 3);
+                    posicion.Y += rand->Next(-2, 3);
+                    delete rand;
+                }
+                
+                contador++;
+                if (contador > 30)
+                {
+                    modoIA = !modoIA;
+                    contador = 0;
+                }
+            }
+        }
+        
+        property TipoEnemigo Tipo {
+            TipoEnemigo get() { return tipo; }
+        }
+        
+        property int Danio {
+            int get() { return danio; }
+        }
+        
+        property bool EnConflicto {
+            bool get() { return enConflicto; }
+            void set(bool value) { enConflicto = value; }
+        }
+        
+        property String^ DialogoConflicto {
+            String^ get() { return dialogoConflicto; }
+        }
+        
+        property String^ DialogoCooperacion {
+            String^ get() { return dialogoCooperacion; }
+        }
+    };
+}
+
+Aliado.h
+
+#pragma once
+
+#include "Personaje.h"
+
+namespace Trabajofinal {
+    
+    public ref class Aliado : public Personaje
+    {
+    private:
+        array<String^>^ consejos;
+        int indiceConsejo;
+        bool haAyudado;
+        
+    public:
+        Aliado(String^ nombre, Point posicion, Color color)
+            : Personaje(nombre, posicion, color)
+        {
+            haAyudado = false;
+            indiceConsejo = 0;
+            
+            consejos = gcnew array<String^>(5);
+            consejos[0] = "Recuerda: cada mundo tiene una leccion que ensenar.";
+            consejos[1] = "La IA busca eficiencia, pero ¿a que costo?";
+            consejos[2] = "La humanidad es imperfecta, y eso la hace unica.";
+            consejos[3] = "El verdadero progreso esta en el equilibrio.";
+            consejos[4] = "Observa, aprende, pero forma tus propias conclusiones.";
+        }
+        
+        virtual void Dibujar(Graphics^ g) override
+        {
+            SolidBrush^ brushEstrella = gcnew SolidBrush(color);
+            
+            array<Point>^ estrella = gcnew array<Point>(10);
+            int radioExterno = 20;
+            int radioInterno = 10;
+            
+            for (int i = 0; i < 10; i++)
+            {
+                double angulo = i * 3.14159 / 5;
+                int radio = (i % 2 == 0) ? radioExterno : radioInterno;
+                estrella[i] = Point(
+                    posicion.X + (int)(radio * Math::Cos(angulo)),
+                    posicion.Y + (int)(radio * Math::Sin(angulo))
+                );
+            }
+            
+            g->FillPolygon(brushEstrella, estrella);
+            delete brushEstrella;
+        }
+        
+        virtual void Actualizar() override
+        {
+            // El aliado no se mueve
+        }
+        
+        String^ ObtenerConsejo()
+        {
+            if (indiceConsejo < consejos->Length)
+            {
+                String^ consejo = consejos[indiceConsejo];
+                indiceConsejo++;
+                haAyudado = true;
+                return consejo;
+            }
+            return "Ya te he dado todos mis consejos.";
+        }
+        
+        property bool HaAyudado {
+            bool get() { return haAyudado; }
+            void set(bool value) { haAyudado = value; }
+        }
+    };
+}
+
+
+Recursos.h
+
+#pragma once
+
+#include "Personaje.h"
+
+namespace Trabajofinal {
+    
+    public enum class TipoRecurso
+    {
+        Eficiencia,
+        Creatividad,
+        Equilibrio
+    };
+    
+    public ref class Recurso : public Personaje
+    {
+    private:
+        TipoRecurso tipo;
+        int valor;
+        bool recolectado;
+        
+    public:
+        Recurso(Point posicion, TipoRecurso tipoRecurso)
+            : Personaje(ObtenerNombrePorTipo(tipoRecurso), posicion, ObtenerColorPorTipo(tipoRecurso))
+        {
+            tipo = tipoRecurso;
+            valor = 50;
+            recolectado = false;
+        }
+        
+        virtual void Dibujar(Graphics^ g) override
+        {
+            if (!recolectado)
+            {
+                SolidBrush^ brushRecurso = gcnew SolidBrush(color);
+                
+                if (tipo == TipoRecurso::Eficiencia)
+                {
+                    // Rombo
+                    array<Point>^ cristal = gcnew array<Point>(4);
+                    cristal[0] = Point(posicion.X, posicion.Y - 15);
+                    cristal[1] = Point(posicion.X + 15, posicion.Y);
+                    cristal[2] = Point(posicion.X, posicion.Y + 15);
+                    cristal[3] = Point(posicion.X - 15, posicion.Y);
+                    g->FillPolygon(brushRecurso, cristal);
+                }
+                else if (tipo == TipoRecurso::Creatividad)
+                {
+                    // Circulo
+                    g->FillEllipse(brushRecurso, posicion.X - 12, posicion.Y - 12, 24, 24);
+                }
+                else // Equilibrio
+                {
+                    // Circulo con anillo
+                    g->FillEllipse(brushRecurso, posicion.X - 15, posicion.Y - 15, 30, 30);
+                    
+                    Pen^ penAnillo = gcnew Pen(Color::White, 2);
+                    g->DrawEllipse(penAnillo, posicion.X - 10, posicion.Y - 10, 20, 20);
+                    delete penAnillo;
+                }
+                
+                delete brushRecurso;
+            }
+        }
+        
+        virtual void Actualizar() override
+        {
+            // Los recursos no se mueven
+        }
+        
+        static String^ ObtenerNombrePorTipo(TipoRecurso tipo)
+        {
+            if (tipo == TipoRecurso::Eficiencia)
+                return "Cristal de Eficiencia";
+            else if (tipo == TipoRecurso::Creatividad)
+                return "Flor de Creatividad";
+            else
+                return "Esfera de Equilibrio";
+        }
+        
+        static Color ObtenerColorPorTipo(TipoRecurso tipo)
+        {
+            if (tipo == TipoRecurso::Eficiencia)
+                return Color::FromArgb(0, 200, 255);
+            else if (tipo == TipoRecurso::Creatividad)
+                return Color::FromArgb(255, 100, 0);
+            else
+                return Color::FromArgb(150, 0, 255);
+        }
+        
+        property TipoRecurso Tipo {
+            TipoRecurso get() { return tipo; }
+        }
+        
+        property int Valor {
+            int get() { return valor; }
+        }
+        
+        property bool Recolectado {
+            bool get() { return recolectado; }
+            void set(bool value) { recolectado = value; }
+        }
+    };
+}
+
+FORMULARIODEJUEGO.H
+
+#pragma once
+
+#include "Personaje.h"
+#include "Protagonista.h"
+#include "Enemigo.h"
+#include "Aliado.h"
+#include "Recurso.h"
+
+namespace Trabajofinal {
+
+    using namespace System;
+    using namespace System::ComponentModel;
+    using namespace System::Collections;
+    using namespace System::Windows::Forms;
+    using namespace System::Data;
+    using namespace System::Drawing;
+
+    public ref class FormularioJuego : public System::Windows::Forms::Form
+    {
+    public:
+        FormularioJuego(void)
+        {
+            InitializeComponent();
+            InicializarJuego();
+        }
+
+    protected:
+        ~FormularioJuego()
+        {
+            if (components)
+                delete components;
+        }
+
+    private:
+        System::ComponentModel::IContainer^ components;
+        System::Windows::Forms::Timer^ timerJuego;
+        
+        // Objetos del juego
+        Protagonista^ jugador;
+        array<Enemigo^>^ enemigos;
+        array<Aliado^>^ aliados;
+        array<Recurso^>^ recursos;
+        
+        // Estado
+        int mundoIndex;
+        String^ mundoActual;
+        String^ dialogoActual;
+        
+        // Teclado
+        bool teclaArriba, teclaAbajo, teclaIzquierda, teclaDerecha;
+
+    private:
+        void InitializeComponent(void)
+        {
+            this->components = gcnew System::ComponentModel::Container();
+            this->timerJuego = gcnew System::Windows::Forms::Timer(this->components);
+            
+            this->ClientSize = System::Drawing::Size(1000, 700);
+            this->Text = L"Trabajo Final - POO Completo";
+            this->StartPosition = FormStartPosition::CenterScreen;
+            this->FormBorderStyle = Windows::Forms::FormBorderStyle::FixedSingle;
+            this->MaximizeBox = false;
+            this->DoubleBuffered = true;
+            
+            this->timerJuego->Interval = 16;
+            this->timerJuego->Tick += gcnew System::EventHandler(this, &FormularioJuego::TimerJuego_Tick);
+            this->timerJuego->Start();
+            
+            this->KeyDown += gcnew System::Windows::Forms::KeyEventHandler(this, &FormularioJuego::FormularioJuego_KeyDown);
+            this->KeyUp += gcnew System::Windows::Forms::KeyEventHandler(this, &FormularioJuego::FormularioJuego_KeyUp);
+            this->Paint += gcnew System::Windows::Forms::PaintEventHandler(this, &FormularioJuego::FormularioJuego_Paint);
+        }
+        
+        void InicializarJuego(void)
+        {
+            // Crear protagonista
+            jugador = gcnew Protagonista(Point(100, 100));
+            
+            // Crear enemigos
+            enemigos = gcnew array<Enemigo^>(3);
+            enemigos[0] = gcnew Enemigo("Enemigo IA", Point(400, 200), TipoEnemigo::IA, Color::Red);
+            enemigos[1] = gcnew Enemigo("Enemigo Humano", Point(600, 400), TipoEnemigo::Humano, Color::Orange);
+            enemigos[2] = gcnew Enemigo("Enemigo Mixto", Point(300, 500), TipoEnemigo::Mixto, Color::Purple);
+            
+            // Crear aliados
+            aliados = gcnew array<Aliado^>(2);
+            aliados[0] = gcnew Aliado("Guia IA", Point(200, 300), Color::Cyan);
+            aliados[1] = gcnew Aliado("Guia Humano", Point(500, 100), Color::Green);
+            
+            // Crear recursos
+            recursos = gcnew array<Recurso^>(3);
+            recursos[0] = gcnew Recurso(Point(300, 300), TipoRecurso::Eficiencia);
+            recursos[1] = gcnew Recurso(Point(500, 200), TipoRecurso::Creatividad);
+            recursos[2] = gcnew Recurso(Point(400, 400), TipoRecurso::Equilibrio);
+            
+            // Estado inicial
+            mundoIndex = 0;
+            mundoActual = "MUNDO 1: LA MAQUINA SUPREMA (IA)";
+            dialogoActual = "Bienvenido. Usa flechas para moverte.";
+            
+            teclaArriba = teclaAbajo = teclaIzquierda = teclaDerecha = false;
+        }
+        
+        void TimerJuego_Tick(Object^ sender, EventArgs^ e)
+        {
+            // Movimiento del jugador
+            if (teclaArriba) jugador->Posicion = Point(jugador->Posicion.X, jugador->Posicion.Y - 5);
+            if (teclaAbajo) jugador->Posicion = Point(jugador->Posicion.X, jugador->Posicion.Y + 5);
+            if (teclaIzquierda) jugador->Posicion = Point(jugador->Posicion.X - 5, jugador->Posicion.Y);
+            if (teclaDerecha) jugador->Posicion = Point(jugador->Posicion.X + 5, jugador->Posicion.Y);
+            
+            // Actualizar enemigos
+            for each (Enemigo^ enemigo in enemigos)
+                enemigo->Actualizar();
+            
+            // Colisiones con recursos
+            for each (Recurso^ recurso in recursos)
+            {
+                if (!recurso->Recolectado && jugador->ColisionaCon(recurso))
+                {
+                    recurso->Recolectado = true;
+                    jugador->SumarPuntos(recurso->Valor);
+                    dialogoActual = "Recurso recolectado: " + recurso->Nombre;
+                }
+            }
+            
+            // Colisiones con aliados
+            for each (Aliado^ aliado in aliados)
+            {
+                if (!aliado->HaAyudado && jugador->ColisionaCon(aliado))
+                {
+                    aliado->HaAyudado = true;
+                    jugador->Vida += 20;
+                    dialogoActual = aliado->ObtenerConsejo();
+                }
+            }
+            
+            this->Invalidate();
+        }
+        
+        void FormularioJuego_KeyDown(Object^ sender, KeyEventArgs^ e)
+        {
+            if (e->KeyCode == Keys::Up || e->KeyCode == Keys::W)
+                teclaArriba = true;
+            else if (e->KeyCode == Keys::Down || e->KeyCode == Keys::S)
+                teclaAbajo = true;
+            else if (e->KeyCode == Keys::Left || e->KeyCode == Keys::A)
+                teclaIzquierda = true;
+            else if (e->KeyCode == Keys::Right || e->KeyCode == Keys::D)
+                teclaDerecha = true;
+            else if (e->KeyCode == Keys::E)
+            {
+                jugador->SumarPuntos(10);
+                dialogoActual = "Interactuando...";
+            }
+            else if (e->KeyCode == Keys::M)
+            {
+                mundoIndex = (mundoIndex + 1) % 3;
+                if (mundoIndex == 0)
+                    mundoActual = "MUNDO 1: LA MAQUINA SUPREMA (IA)";
+                else if (mundoIndex == 1)
+                    mundoActual = "MUNDO 2: LA LUZ DEL PENSAMIENTO (HUMANO)";
+                else
+                    mundoActual = "MUNDO 3: EL PUENTE DEL FUTURO (COLABORATIVO)";
+            }
+            else if (e->KeyCode == Keys::Escape)
+                this->Close();
+        }
+        
+        void FormularioJuego_KeyUp(Object^ sender, KeyEventArgs^ e)
+        {
+            if (e->KeyCode == Keys::Up || e->KeyCode == Keys::W)
+                teclaArriba = false;
+            else if (e->KeyCode == Keys::Down || e->KeyCode == Keys::S)
+                teclaAbajo = false;
+            else if (e->KeyCode == Keys::Left || e->KeyCode == Keys::A)
+                teclaIzquierda = false;
+            else if (e->KeyCode == Keys::Right || e->KeyCode == Keys::D)
+                teclaDerecha = false;
+        }
+        
+        void FormularioJuego_Paint(Object^ sender, PaintEventArgs^ e)
+        {
+            Graphics^ g = e->Graphics;
+            
+            // Fondo
+            if (mundoIndex == 0)
+                g->Clear(Color::DarkBlue);
+            else if (mundoIndex == 1)
+                g->Clear(Color::DarkGreen);
+            else
+                g->Clear(Color::DarkViolet);
+            
+            // Dibujar todos los objetos
+            for each (Recurso^ recurso in recursos)
+                recurso->Dibujar(g);
+            
+            for each (Aliado^ aliado in aliados)
+                aliado->Dibujar(g);
+            
+            for each (Enemigo^ enemigo in enemigos)
+                enemigo->Dibujar(g);
+            
+            jugador->Dibujar(g);
+            
+            // Dibujar interfaz
+            DibujarInterfaz(g);
+        }
+        
+        void DibujarInterfaz(Graphics^ g)
+        {
+            System::Drawing::Font^ fontNormal = gcnew System::Drawing::Font("Arial", 12);
+            System::Drawing::Font^ fontGrande = gcnew System::Drawing::Font("Arial", 14, FontStyle::Bold);
+            
+            // Fondo
+            SolidBrush^ brushFondo = gcnew SolidBrush(Color::FromArgb(150, 0, 0, 0));
+            g->FillRectangle(brushFondo, 10, 10, 980, 150);
+            
+            g->DrawString(mundoActual, fontGrande, Brushes::Cyan, 20, 20);
+            g->DrawString("VIDA: " + jugador->Vida.ToString(), fontNormal, Brushes::White, 20, 60);
+            g->DrawString("PUNTOS: " + jugador->Puntos.ToString(), fontNormal, Brushes::Yellow, 20, 90);
+            g->DrawString(dialogoActual, fontNormal, Brushes::LightGreen, 20, 120);
+            
+            String^ controles = "CONTROLES: WASD = Moverse | E = Interactuar | M = Cambiar Mundo | ESC = Salir";
+            g->DrawString(controles, fontNormal, Brushes::White, 20, 650);
+            
+            delete fontNormal;
+            delete fontGrande;
+            delete brushFondo;
+        }
+    };
+}
